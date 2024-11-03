@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>15-Puzzle Solver</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background-color: #f4f4f9;
+      margin: 0;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+    #puzzle-container {
+      display: grid;
+      grid-template-columns: repeat(4, 80px);
+      grid-template-rows: repeat(4, 80px);
+      gap: 5px;
+    }
+    .tile {
+      width: 80px;
+      height: 80px;
+      background-color: #ffcc66;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: bold;
+      color: #333;
+      border-radius: 5px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      cursor: grab;
+      user-select: none;
+    }
+    .tile.blank {
+      background-color: #e0e0e0;
+      cursor: default;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+  </style>
+</head>
+<body>
+
+<h1>15-Puzzle Solver</h1>
+<div id="puzzle-container"></div>
+
+<button onclick="solvePuzzle()">Solve Puzzle</button>
+
+<script>
+  const puzzleContainer = document.getElementById("puzzle-container");
+  let startPuzzle = [
+    [1, 2, 3, 4],
+    [5, 6, 7, 8],
+    [9, 10, 11, 12],
+    [13, 14, 15, 0]
+  ];
+
+  // Function to render the puzzle grid based on the 2D array state
+  function renderPuzzle(puzzle) {
+    puzzleContainer.innerHTML = "";  // Clear the container
+    puzzle.forEach((row, rowIndex) => {
+      row.forEach((tile, colIndex) => {
+        const tileDiv = document.createElement("div");
+        tileDiv.classList.add("tile");
+        tileDiv.draggable = true;
+
+        if (tile === 0) {
+          tileDiv.classList.add("blank");
+          tileDiv.textContent = "";  // Empty tile for the blank space
+        } else {
+          tileDiv.textContent = tile;
+        }
+
+        tileDiv.dataset.row = rowIndex;
+        tileDiv.dataset.col = colIndex;
+        tileDiv.addEventListener("dragstart", handleDragStart);
+        tileDiv.addEventListener("dragover", handleDragOver);
+        tileDiv.addEventListener("drop", handleDrop);
+
+        puzzleContainer.appendChild(tileDiv);
+      });
+    });
+  }
+
+  // Drag-and-drop event handlers
+  let draggedTile = null;
+
+  function handleDragStart(event) {
+    draggedTile = event.target;
+    event.dataTransfer.effectAllowed = "move";
+  }
+
+  function handleDragOver(event) {
+    event.preventDefault();
+  }
+
+  function handleDrop(event) {
+    event.preventDefault();
+    
+    const targetTile = event.target;
+    if (!targetTile.classList.contains("tile") || targetTile === draggedTile) return;
+
+    const draggedRow = parseInt(draggedTile.dataset.row);
+    const draggedCol = parseInt(draggedTile.dataset.col);
+    const targetRow = parseInt(targetTile.dataset.row);
+    const targetCol = parseInt(targetTile.dataset.col);
+
+    [startPuzzle[draggedRow][draggedCol], startPuzzle[targetRow][targetCol]] =
+      [startPuzzle[targetRow][targetCol], startPuzzle[draggedRow][draggedCol]];
+
+    renderPuzzle(startPuzzle);
+  }
+
+  // Animation function to show each step of the solution
+  function animateSolution(solution) {
+    let stepIndex = 0;
+
+    function nextStep() {
+      if (stepIndex < solution.length) {
+        renderPuzzle(solution[stepIndex]);
+        console.log(`Step ${stepIndex + 1}:`, solution[stepIndex]);  // Log each step
+        stepIndex++;
+        setTimeout(nextStep, 750); // Adjust delay as needed for animation speed
+      }
+    }
+
+    nextStep();
+  }
+
+  // Function to send the puzzle to the server for solving
+  function solvePuzzle() {
+    fetch("/solve", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ puzzle: startPuzzle })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.solution) {
+        alert(`Puzzle solved in ${data.moves} moves!`);
+        console.log("Solution path:", data.solution);  // Log the solution path for debugging
+        animateSolution(data.solution);  // Animate the solution steps
+      } else {
+        alert("No solution found.");
+      }
+    })
+    .catch(error => {
+      console.error("Error:", error);
+    });
+  }
+
+  // Initial render
+  renderPuzzle(startPuzzle);
+</script>
+
+</body>
+</html>
